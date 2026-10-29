@@ -8,5 +8,5 @@
 .idea/
 RabbitMQPublisher.Test/
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
 README.md

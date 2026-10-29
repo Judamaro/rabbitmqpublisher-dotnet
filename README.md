@@ -20,7 +20,8 @@ rabbitmqpublisher-dotnet
 ├── RabbitMQPublisher.Test/           xUnit + NSubstitute
 ├── .dockerignore
 ├── .gitignore
-├── docker-compose.yml
+├── docker-compose.yml                Coolify deployment (API only, required variables)
+├── docker-compose.local.yml          Local development (API + PostgreSQL + RabbitMQ)
 ├── Dockerfile
 ├── RabbitMQPublisher.slnx
 └── README.md
@@ -89,23 +90,47 @@ holds its id so it can be republished.
 Messages are published as persistent, `application/json`, with `messageId` and `type` properties,
 `mandatory = true` and publisher confirms, so a successful response means RabbitMQ accepted and routed it.
 
+## Deploying to Coolify
+
+Use the Docker Compose build pack with `docker-compose.yml`. It only contains the API, so PostgreSQL
+and RabbitMQ are external resources. Coolify lists every `${...}` reference in the **Environment
+Variables** tab: the ones written as `${VAR:?}` are required, and Coolify highlights them and blocks
+the deployment until they have a value. The rest have defaults.
+
+| Variable                                   | Required | Default              | Setting                                          |
+|--------------------------------------------|----------|----------------------|--------------------------------------------------|
+| `CONNECTIONSTRINGS_PUBLISHER_MESSAGE`      | Yes      |                      | `ConnectionStrings:PublisherMessage`             |
+| `RABBITMQ_HOST`                            | Yes      |                      | `RabbitMQOptions:Host`                           |
+| `RABBITMQ_USER`                            | Yes      |                      | `RabbitMQOptions:User`                           |
+| `RABBITMQ_PASSWORD`                        | Yes      |                      | `RabbitMQOptions:Pwd`                            |
+| `RABBITMQ_CLIENT_NAME`                     | No       | `rabbitmq-publisher` | `RabbitMQOptions:Name`                           |
+| `RABBITMQ_PORT`                            | No       | `5672`               | `RabbitMQOptions:Port`                           |
+| `RABBITMQ_VIRTUAL_HOST`                    | No       | `/`                  | `RabbitMQOptions:VirtualHost`                    |
+| `RABBITMQ_PREFETCH_COUNT`                  | No       | `10`                 | `RabbitMQOptions:PrefetchCount`                  |
+| `RABBITMQ_HEARTBEAT_SECONDS`               | No       | `30`                 | `RabbitMQOptions:HeartbeatSeconds`               |
+| `RABBITMQ_NETWORK_RECOVERY_INTERVAL_SECONDS` | No     | `5`                  | `RabbitMQOptions:NetworkRecoveryIntervalSeconds` |
+| `RABBITMQ_MAX_CONNECT_RETRY_DELAY_SECONDS` | No       | `60`                 | `RabbitMQOptions:MaxConnectRetryDelaySeconds`    |
+| `DATABASE_APPLY_MIGRATIONS_ON_STARTUP`     | No       | `false`              | `Database:ApplyMigrationsOnStartup`              |
+| `ASPNETCORE_ENVIRONMENT`                   | No       | `Production`         | Hosting environment                              |
+
+The API listens on port `8080`.
+
 ## Running with Docker
 
 Builds the API image and starts it together with PostgreSQL and RabbitMQ:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.local.yml up -d --build
 ```
 
 Swagger UI is available at `http://localhost:8080/swagger`.
-
 
 ## Running locally
 
 Start only the dependencies:
 
 ```bash
-docker compose up -d postgres rabbitmq
+docker compose -f docker-compose.local.yml up -d postgres rabbitmq
 ```
 
 ```bash
@@ -123,11 +148,11 @@ The RabbitMQ management UI is at `http://localhost:15672` (guest / guest). Sampl
 `appsettings.json`:
 
 - `ConnectionStrings:PublisherMessage`: PostgreSQL connection string. `appsettings.json` holds the
-  `ConnectionStrings_Postgres_PublisherMessage` placeholder, injected at deploy time (for example in
-  Coolify through the `ConnectionStrings__PublisherMessage` environment variable).
+  `ConnectionStrings_Postgres_PublisherMessage` placeholder, injected at deploy time (in Coolify
+  through `CONNECTIONSTRINGS_PUBLISHER_MESSAGE`, see [Deploying to Coolify](#deploying-to-coolify)).
 - `Database:ApplyMigrationsOnStartup`: applies pending EF Core migrations when the API starts
-  (`false` in `appsettings.json`, `true` in `appsettings.Development.json`). Enable it in a deployed
-  environment with `Database__ApplyMigrationsOnStartup=true`.
+  (`false` in `appsettings.json`, `true` in `appsettings.Development.json`). Enable it in Coolify with
+  `DATABASE_APPLY_MIGRATIONS_ON_STARTUP=true`.
 - `RabbitMQOptions`: `Name` (connection name), `Host`, `User`, `Pwd`, `Port`, `VirtualHost`,
   `HeartbeatSeconds`, `NetworkRecoveryIntervalSeconds` (automatic recovery interval) and
   `MaxConnectRetryDelaySeconds` (cap of the exponential backoff used to establish the initial
