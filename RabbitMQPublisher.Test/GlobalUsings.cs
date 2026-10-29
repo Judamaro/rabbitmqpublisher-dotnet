@@ -1,3 +1,5 @@
+global using System.Text;
+global using System.Text.Json;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using NSubstitute;
 global using NSubstitute.ExceptionExtensions;
@@ -8,4 +10,5 @@ global using RabbitMQPublisher.Application.Messages;
 global using RabbitMQPublisher.Application.Publications;
 global using RabbitMQPublisher.Domain.Common;
 global using RabbitMQPublisher.Domain.Entities;
+global using RabbitMQPublisher.Infrastructure.Messaging;
 global using RabbitMQPublisher.Test.Common;

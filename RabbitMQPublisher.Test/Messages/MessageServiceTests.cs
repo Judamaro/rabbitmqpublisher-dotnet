@@ -14,14 +14,7 @@ public sealed class MessageServiceTests
 
     public MessageServiceTests()
     {
-        _service = new MessageService(
-            _messageRepository,
-            _publicationRepository,
-            _unitOfWork,
-            _messageBroker,
-            new PublishMessageRequestValidator(),
-            _timeProvider,
-            NullLogger<MessageService>.Instance);
+        _service = new MessageService(_messageRepository, _publicationRepository, _unitOfWork, _messageBroker, new PublishMessageRequestValidator(), _timeProvider, NullLogger<MessageService>.Instance);
 
         _publicationRepository.GetByRoutingKeyAsync(RoutingKey, Arg.Any<CancellationToken>())
             .Returns(Publication.Create("orders.created.queue", RoutingKey, "orders"));
@@ -36,9 +29,7 @@ public sealed class MessageServiceTests
         Assert.True(result.Value.Published);
         Assert.Equal(_timeProvider.GetUtcNow().UtcDateTime, result.Value.PublishedAt);
         _messageRepository.Received(1).Add(Arg.Is<Message>(message => message.Payload == Payload));
-        await _messageBroker.Received(1).PublishAsync(
-            Arg.Is<BrokerMessage>(message => message.Exchange == "orders" && message.RoutingKey == RoutingKey && message.Type == "OrderCreated"),
-            Arg.Any<CancellationToken>());
+        await _messageBroker.Received(1).PublishAsync(Arg.Is<BrokerMessage>(message => message.Exchange == "orders" && message.RoutingKey == RoutingKey && message.Type == "OrderCreated"), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -70,8 +61,7 @@ public sealed class MessageServiceTests
     {
         Message? storedMessage = null;
         _messageRepository.Add(Arg.Do<Message>(message => storedMessage = message));
-        _messageBroker.PublishAsync(Arg.Any<BrokerMessage>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new MessageBrokerException("Broker down"));
+        _messageBroker.PublishAsync(Arg.Any<BrokerMessage>(), Arg.Any<CancellationToken>()).ThrowsAsync(new MessageBrokerException("Broker down"));
 
         Result<MessageResponse> result = await _service.PublishAsync(new PublishMessageRequest(Payload, RoutingKey, "OrderCreated"));
 

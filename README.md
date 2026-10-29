@@ -87,6 +87,15 @@ published/processed, duplicated routing key), `503` broker unavailable, `500` un
 When publishing fails the message stays stored with `published = false` and `result.messageId`
 holds its id so it can be republished.
 
+### Published message
+
+Each message is published with this JSON body, where `Id` is the id the message got in the database
+and `Payload` is the serialized JSON payload sent as a string:
+
+```json
+{"Id":7,"Payload":"{\"orderId\":7}","Type":"OrderCreated"}
+```
+
 Messages are published as persistent, `application/json`, with `messageId` and `type` properties,
 `mandatory = true` and publisher confirms, so a successful response means RabbitMQ accepted and routed it.
 

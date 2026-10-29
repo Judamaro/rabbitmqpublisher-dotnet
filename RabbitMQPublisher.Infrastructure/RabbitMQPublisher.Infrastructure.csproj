@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="RabbitMQPublisher.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\RabbitMQPublisher.Application\RabbitMQPublisher.Application.csproj" />
   </ItemGroup>
 

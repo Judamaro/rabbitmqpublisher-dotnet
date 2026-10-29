@@ -1,5 +1,8 @@
 global using System.ComponentModel.DataAnnotations;
 global using System.Text;
+global using System.Text.Encodings.Web;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
 global using Microsoft.Extensions.Configuration;

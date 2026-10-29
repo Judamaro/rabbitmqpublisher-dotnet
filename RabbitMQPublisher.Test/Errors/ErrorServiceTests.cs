@@ -9,12 +9,7 @@ public sealed class ErrorServiceTests
 
     public ErrorServiceTests()
     {
-        _service = new ErrorService(
-            _errorRepository,
-            _messageRepository,
-            _unitOfWork,
-            new AddErrorRequestValidator(),
-            new FixedTimeProvider());
+        _service = new ErrorService(_errorRepository, _messageRepository, _unitOfWork, new AddErrorRequestValidator(), new FixedTimeProvider());
     }
 
     [Fact]

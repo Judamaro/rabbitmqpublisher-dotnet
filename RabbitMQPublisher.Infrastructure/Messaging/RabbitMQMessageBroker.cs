@@ -2,8 +2,9 @@ namespace RabbitMQPublisher.Infrastructure.Messaging;
 
 /// <summary>
 /// Adapter that implements <see cref="IMessageBroker"/> with the RabbitMQ .NET client.
-/// Messages are published as persistent and with publisher confirmations, so a completed
-/// <see cref="PublishAsync"/> call means the broker accepted and routed the message.
+/// Each message is published as a JSON <see cref="MessageEnvelope"/> (id, payload and type), persistent
+/// and with publisher confirmations, so a completed <see cref="PublishAsync"/> call means the broker
+/// accepted and routed the message.
 /// </summary>
 /// <param name="connectionProvider">Provider of the shared connection.</param>
 internal sealed class RabbitMQMessageBroker(IRabbitMQConnectionProvider connectionProvider) : IMessageBroker
@@ -13,6 +14,9 @@ internal sealed class RabbitMQMessageBroker(IRabbitMQConnectionProvider connecti
     private static readonly CreateChannelOptions PublisherChannelOptions = new(
         publisherConfirmationsEnabled: true,
         publisherConfirmationTrackingEnabled: true);
+
+    // The body is not embedded in HTML, so quotes inside the payload are escaped as \" instead of \u0022.
+    private static readonly MessageEnvelopeJsonContext EnvelopeJsonContext = new(new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
     /// <inheritdoc />
     public Task PublishAsync(BrokerMessage message, CancellationToken cancellationToken = default)
@@ -28,10 +32,19 @@ internal sealed class RabbitMQMessageBroker(IRabbitMQConnectionProvider connecti
                     Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                 };
 
-                await channel.BasicPublishAsync(message.Exchange, message.RoutingKey, mandatory: true, properties, Encoding.UTF8.GetBytes(message.Payload), cancellationToken);
+                await channel.BasicPublishAsync(message.Exchange, message.RoutingKey, mandatory: true, properties, SerializeBody(message), cancellationToken);
             },
             $"Message '{message.MessageId}' could not be published to exchange '{message.Exchange}'.",
             cancellationToken);
+
+    /// <summary>
+    /// Serializes the body published for a message: a <see cref="MessageEnvelope"/> with its database id,
+    /// its payload (as a JSON string) and its type.
+    /// </summary>
+    /// <param name="message">The message to publish.</param>
+    /// <returns>The UTF-8 encoded JSON body.</returns>
+    internal static byte[] SerializeBody(BrokerMessage message)
+        => JsonSerializer.SerializeToUtf8Bytes(new MessageEnvelope(message.MessageId, message.Payload, message.Type), EnvelopeJsonContext.MessageEnvelope);
 
     /// <inheritdoc />
     public Task DeclareTopologyAsync(string exchange, string queue, string routingKey, CancellationToken cancellationToken = default) =>
