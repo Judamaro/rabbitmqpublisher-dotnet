@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RabbitMQPublisher.App/RabbitMQPublisher.App.csproj" />
+  <Project Path="RabbitMQPublisher.Application/RabbitMQPublisher.Application.csproj" />
+  <Project Path="RabbitMQPublisher.Domain/RabbitMQPublisher.Domain.csproj" />
+  <Project Path="RabbitMQPublisher.Infrastructure/RabbitMQPublisher.Infrastructure.csproj" />
+  <Project Path="RabbitMQPublisher.Test/RabbitMQPublisher.Test.csproj" />
+</Solution>

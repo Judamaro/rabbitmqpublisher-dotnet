@@ -1,0 +1,39 @@
+@HostAddress = http://localhost:5245
+
+### Create a publication (routing configuration)
+POST {{HostAddress}}/api/publication
+Content-Type: application/json
+
+{
+  "queue": "orders.created",
+  "routingKey": "orders.created",
+  "exchange": "orders"
+}
+
+### List publications
+GET {{HostAddress}}/api/publication
+
+### Publish a message
+POST {{HostAddress}}/api/message/publish
+Content-Type: application/json
+
+{
+  "payload": "{\"orderId\":1,\"total\":99.5}",
+  "routingKey": "orders.created",
+  "type": "OrderCreated"
+}
+
+### Republish a message
+POST {{HostAddress}}/api/message/1/republish
+
+### Mark a message as processed
+PATCH {{HostAddress}}/api/message/1/updateasprocessed
+
+### Add an error to a message
+POST {{HostAddress}}/api/error/add
+Content-Type: application/json
+
+{
+  "messageId": 1,
+  "text": "Consumer failed to process the message."
+}

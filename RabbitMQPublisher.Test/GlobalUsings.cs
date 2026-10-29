@@ -1,0 +1,11 @@
+global using Microsoft.Extensions.Logging.Abstractions;
+global using NSubstitute;
+global using NSubstitute.ExceptionExtensions;
+global using RabbitMQPublisher.Application.Abstractions.Messaging;
+global using RabbitMQPublisher.Application.Abstractions.Persistence;
+global using RabbitMQPublisher.Application.Errors;
+global using RabbitMQPublisher.Application.Messages;
+global using RabbitMQPublisher.Application.Publications;
+global using RabbitMQPublisher.Domain.Common;
+global using RabbitMQPublisher.Domain.Entities;
+global using RabbitMQPublisher.Test.Common;

@@ -1,0 +1,14 @@
+global using System.Text.Json;
+global using FluentValidation;
+global using FluentValidation.Results;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using RabbitMQPublisher.Application.Abstractions.Messaging;
+global using RabbitMQPublisher.Application.Abstractions.Persistence;
+global using RabbitMQPublisher.Application.Common;
+global using RabbitMQPublisher.Application.Errors;
+global using RabbitMQPublisher.Application.Messages;
+global using RabbitMQPublisher.Application.Publications;
+global using RabbitMQPublisher.Domain.Common;
+global using RabbitMQPublisher.Domain.Entities;
+global using RabbitMQPublisher.Domain.Errors;

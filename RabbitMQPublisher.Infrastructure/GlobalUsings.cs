@@ -1,0 +1,16 @@
+global using System.ComponentModel.DataAnnotations;
+global using System.Text;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.EntityFrameworkCore.Metadata.Builders;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Hosting;
+global using Microsoft.Extensions.Logging;
+global using Microsoft.Extensions.Options;
+global using RabbitMQ.Client;
+global using RabbitMQPublisher.Application.Abstractions.Messaging;
+global using RabbitMQPublisher.Application.Abstractions.Persistence;
+global using RabbitMQPublisher.Domain.Entities;
+global using RabbitMQPublisher.Infrastructure.Messaging;
+global using RabbitMQPublisher.Infrastructure.Persistence;
+global using RabbitMQPublisher.Infrastructure.Persistence.Repositories;
