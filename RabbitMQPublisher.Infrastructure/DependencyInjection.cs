@@ -8,7 +8,10 @@ public static class DependencyInjection
     /// <summary>Name of the PostgreSQL connection string.</summary>
     public const string ConnectionStringName = "PublisherMessage";
 
-    /// <summary>Adds persistence, messaging and time services to the container.</summary>
+    /// <summary>Maximum time a dependency health check may take before it is reported as unhealthy.</summary>
+    private static readonly TimeSpan HealthCheckTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>Adds persistence, messaging, health check and time services to the container.</summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
     /// <returns>The same service collection, for chaining.</returns>
@@ -18,7 +21,8 @@ public static class DependencyInjection
 
         return services
             .AddPersistence(configuration)
-            .AddMessaging();
+            .AddMessaging()
+            .AddDependencyHealthChecks();
     }
 
     private static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
@@ -46,6 +50,15 @@ public static class DependencyInjection
         services.AddSingleton<IRabbitMQConnectionProvider, RabbitMQConnectionProvider>();
         services.AddSingleton<IMessageBroker, RabbitMQMessageBroker>();
         services.AddHostedService<RabbitMQConnectionInitializer>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddDependencyHealthChecks(this IServiceCollection services)
+    {
+        services.AddHealthChecks()
+            .AddDbContextCheck<AppDbContext>("postgresql", tags: [HealthCheckTags.Ready])
+            .AddCheck<RabbitMQHealthCheck>("rabbitmq", tags: [HealthCheckTags.Ready], timeout: HealthCheckTimeout);
 
         return services;
     }

@@ -16,7 +16,7 @@ try
 
     WebApplication app = builder.Build();
 
-    app.UseSerilogRequestLogging();
+    app.UseRequestLogging();
     app.UseExceptionHandler();
     app.UsePetitionResponseStatusCodePages();
 
@@ -31,6 +31,7 @@ try
     app.UseHttpsRedirection();
 
     app.MapControllers();
+    app.MapHealthEndpoints();
 
     await app.RunAsync();
 }

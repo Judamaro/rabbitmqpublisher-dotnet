@@ -106,6 +106,21 @@ and `Payload` is the serialized JSON payload sent as a string:
 Messages are published as persistent, `application/json`, with `messageId` and `type` properties,
 `mandatory = true` and publisher confirms, so a successful response means RabbitMQ accepted and routed it.
 
+## Health checks
+
+| Endpoint            | Checks                                   | Used by                          |
+|---------------------|------------------------------------------|----------------------------------|
+| `GET /health`       | The API is running (no dependencies)     | Docker/Coolify healthcheck       |
+| `GET /health/ready` | PostgreSQL and RabbitMQ are reachable    | Monitoring and manual checks     |
+
+Both answer with a `PetitionResponse` (module `HealthCheck`) whose `result` holds the overall status
+and, for `/health/ready`, the status of each dependency: `200` when healthy, `503` when unhealthy.
+
+The Docker healthcheck in both compose files calls `/health` with `curl` (installed in the image)
+every 30 seconds. It deliberately ignores the dependencies: if RabbitMQ or PostgreSQL were down the
+container would become unhealthy and the proxy would stop routing to the API, although it can still
+store messages and republish them later. Successful health requests are not written to the logs.
+
 ## Deploying to Coolify
 
 Use the Docker Compose build pack with `docker-compose.yml`. It only contains the API, so PostgreSQL

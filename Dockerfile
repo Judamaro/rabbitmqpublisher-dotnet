@@ -19,6 +19,12 @@ RUN dotnet publish RabbitMQPublisher.App/RabbitMQPublisher.App.csproj -c Release
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
+
+# curl is used by the Docker healthcheck (GET /health).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "RabbitMQPublisher.App.dll"]

@@ -20,6 +20,9 @@ public static class ResponseModules
     /// <summary>Handler of unexpected exceptions.</summary>
     public const string GlobalExceptionHandler = "GlobalExceptionHandler";
 
+    /// <summary>Health check endpoints.</summary>
+    public const string HealthCheck = "HealthCheck";
+
     /// <summary>HTTP pipeline (unknown routes, unsupported methods or media types).</summary>
     public const string Api = "Api";
 }

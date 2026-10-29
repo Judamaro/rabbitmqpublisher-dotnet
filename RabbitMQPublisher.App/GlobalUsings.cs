@@ -1,8 +1,10 @@
 global using System.Reflection;
 global using Microsoft.AspNetCore.Diagnostics;
+global using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.AspNetCore.WebUtilities;
 global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.Diagnostics.HealthChecks;
 global using Microsoft.OpenApi;
 global using RabbitMQPublisher.App.Extensions;
 global using RabbitMQPublisher.App.Infrastructure;
@@ -14,5 +16,7 @@ global using RabbitMQPublisher.Application.Messages;
 global using RabbitMQPublisher.Application.Publications;
 global using RabbitMQPublisher.Domain.Common;
 global using RabbitMQPublisher.Infrastructure;
+global using RabbitMQPublisher.Infrastructure.Health;
 global using RabbitMQPublisher.Infrastructure.Persistence;
 global using Serilog;
+global using Serilog.Events;

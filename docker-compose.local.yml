@@ -7,6 +7,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: rabbitmq-publisher-app
+    # Liveness only: an unavailable RabbitMQ or PostgreSQL must not mark the container unhealthy, because the
+    # proxy would stop routing to it. Dependencies are reported by GET /health/ready.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment:
       # Development applies pending migrations at startup and exposes Swagger UI.
       ASPNETCORE_ENVIRONMENT: Development
