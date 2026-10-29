@@ -7,6 +7,15 @@ namespace RabbitMQPublisher.Infrastructure.Persistence;
 internal sealed class UnitOfWork(AppDbContext dbContext) : IUnitOfWork
 {
     /// <inheritdoc />
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        dbContext.SaveChangesAsync(cancellationToken);
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } postgresException)
+        {
+            throw new UniqueConstraintViolationException($"The changes violate the unique constraint '{postgresException.ConstraintName}'.", exception);
+        }
+    }
 }

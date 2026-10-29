@@ -10,6 +10,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
+global using Npgsql;
 global using RabbitMQ.Client;
 global using RabbitMQPublisher.Application.Abstractions.Messaging;
 global using RabbitMQPublisher.Application.Abstractions.Persistence;

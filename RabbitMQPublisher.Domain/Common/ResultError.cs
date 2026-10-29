@@ -27,9 +27,10 @@ public sealed record ResultError(string Code, string Description, ErrorType Type
     /// <summary>Creates a <see cref="ErrorType.Conflict"/> error.</summary>
     /// <param name="code">Error code.</param>
     /// <param name="description">Error description.</param>
+    /// <param name="metadata">Optional additional data.</param>
     /// <returns>The created error.</returns>
-    public static ResultError Conflict(string code, string description)
-        => new(code, description, ErrorType.Conflict);
+    public static ResultError Conflict(string code, string description, IReadOnlyDictionary<string, object?>? metadata = null)
+        => new(code, description, ErrorType.Conflict, metadata);
 
     /// <summary>Creates a <see cref="ErrorType.Unavailable"/> error.</summary>
     /// <param name="code">Error code.</param>

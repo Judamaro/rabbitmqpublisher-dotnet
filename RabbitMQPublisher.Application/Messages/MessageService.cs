@@ -24,9 +24,27 @@ internal sealed class MessageService(IMessageRepository messageRepository, IPubl
         if (publication is null)
             return PublicationErrors.RoutingKeyNotFound(request.RoutingKey);
 
+        int? existingId = await messageRepository.FindIdByContentAsync(request.RoutingKey, request.Type, request.Payload, cancellationToken);
+        if (existingId.HasValue)
+            return MessageErrors.Duplicate(existingId.Value);
+
         Message message = Message.Create(request.Payload, request.Type, request.RoutingKey, UtcNow());
         messageRepository.Add(message);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (UniqueConstraintViolationException exception)
+        {
+            // A concurrent request stored the same message after the previous check.
+            existingId = await messageRepository.FindIdByContentAsync(request.RoutingKey, request.Type, request.Payload, cancellationToken);
+            if (!existingId.HasValue)
+                throw;
+
+            logger.LogWarning(exception, "Duplicate message rejected, it already exists with id {MessageId}", existingId.Value);
+            return MessageErrors.Duplicate(existingId.Value);
+        }
 
         return await PublishToBrokerAsync(message, publication, cancellationToken);
     }

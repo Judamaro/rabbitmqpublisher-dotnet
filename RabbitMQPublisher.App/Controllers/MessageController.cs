@@ -16,7 +16,8 @@ public sealed class MessageController(IMessageService messageService) : ApiContr
     /// <remarks>
     /// The message is stored before being published. If the broker is unavailable the response is
     /// <c>503</c>, the message remains stored with <c>published = false</c> and <c>result.messageId</c>
-    /// holds its id so it can be republished later.
+    /// holds its id so it can be republished later. A message with the same payload, type and routing key
+    /// as an existing one is rejected with <c>409</c> and <c>result.messageId</c> holds the existing id.
     /// </remarks>
     /// <param name="request">The message to publish.</param>
     /// <param name="cancellationToken">Token to cancel the request.</param>
@@ -24,11 +25,13 @@ public sealed class MessageController(IMessageService messageService) : ApiContr
     /// <response code="201">The message was stored and published.</response>
     /// <response code="400">The request is invalid (for example, the payload is not valid JSON).</response>
     /// <response code="404">No publication is configured for the routing key.</response>
+    /// <response code="409">A message with the same payload, type and routing key already exists.</response>
     /// <response code="503">The message was stored but the broker could not publish it.</response>
     [HttpPost("Publish")]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<PetitionResponse>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Publish(PublishMessageRequest request, CancellationToken cancellationToken)
         => Respond(await messageService.PublishAsync(request, cancellationToken), "Message published successfully.", StatusCodes.Status201Created);

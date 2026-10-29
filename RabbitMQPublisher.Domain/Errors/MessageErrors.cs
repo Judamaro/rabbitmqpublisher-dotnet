@@ -23,6 +23,12 @@ public static class MessageErrors
     public static ResultError AlreadyProcessed(int id)
         => ResultError.Conflict("Message.AlreadyProcessed", $"The message with id '{id}' is already processed.");
 
+    /// <summary>A message with the same payload, type and routing key already exists.</summary>
+    /// <param name="existingId">Identifier of the existing message.</param>
+    /// <returns>The error.</returns>
+    public static ResultError Duplicate(int existingId)
+        => ResultError.Conflict("Message.Duplicate", $"A message with the same payload, type and routing key already exists with id '{existingId}'.", new Dictionary<string, object?> { ["messageId"] = existingId });
+
     /// <summary>The message was stored but the broker could not publish it.</summary>
     /// <param name="id">Identifier of the message.</param>
     /// <returns>The error.</returns>

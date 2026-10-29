@@ -8,6 +8,7 @@ public interface IMessageService
     /// <summary>
     /// Stores a new message and publishes it to the exchange configured for its routing key.
     /// The message is stored before publishing, so it can be republished if the broker fails.
+    /// A message with the same payload, type and routing key as an existing one is rejected (idempotency).
     /// </summary>
     /// <param name="request">The message to publish.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>

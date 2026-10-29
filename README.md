@@ -49,7 +49,7 @@ broker confirmation date once published. Dates are stored in UTC.
 
 | Method | Route                                   | Description                                                              |
 |--------|-----------------------------------------|--------------------------------------------------------------------------|
-| POST   | `/api/message/publish`                  | Stores and publishes `{ payload, routingKey, type }`                     |
+| POST   | `/api/message/publish`                  | Stores and publishes `{ payload, routingKey, type }`; rejects duplicates |
 | POST   | `/api/message/{id}/republish`           | Republishes a stored message whose `published` is `false`                |
 | PATCH  | `/api/message/{id}/updateasprocessed`   | Sets `processed = true` and `processedAt` to now                         |
 | POST   | `/api/error/add`                        | Registers `{ messageId, text }` for an existing message                  |
@@ -82,10 +82,17 @@ status code of the response:
 | `result`     | Returned information, or `null` when there is none. On failures it holds error details when available, such as `errors` for validation failures |
 | `statusCode` | HTTP status code                                                                              |
 
-Status codes: `200`/`201` success, `400` validation, `404` not found, `409` conflict (already
-published/processed, duplicated routing key), `503` broker unavailable, `500` unexpected error.
+Status codes: `200`/`201` success, `400` validation, `404` not found, `409` conflict (duplicate
+message, already published/processed, duplicated routing key), `503` broker unavailable, `500` unexpected error.
 When publishing fails the message stays stored with `published = false` and `result.messageId`
 holds its id so it can be republished.
+
+### Idempotency
+
+Publish rejects a message whose **payload, type and routing key** match an existing message, at any
+time. The payload is compared as JSON, so key order and whitespace do not matter. The response is
+`409`, nothing is stored or published, and `result.messageId` holds the id of the existing message.
+A unique index on the database (`UX_Message_Content`) guarantees it even for concurrent requests.
 
 ### Published message
 

@@ -57,6 +57,36 @@ public sealed class MessageServiceTests
     }
 
     [Fact]
+    public async Task PublishAsync_WithDuplicateMessage_ReturnsConflictWithExistingId()
+    {
+        _messageRepository.FindIdByContentAsync(RoutingKey, "OrderCreated", Payload, Arg.Any<CancellationToken>()).Returns(5);
+
+        Result<MessageResponse> result = await _service.PublishAsync(new PublishMessageRequest(Payload, RoutingKey, "OrderCreated"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("Message.Duplicate", result.Error.Code);
+        Assert.Equal(5, result.Error.Metadata?["messageId"]);
+        _messageRepository.DidNotReceiveWithAnyArgs().Add(default!);
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+        await _messageBroker.DidNotReceiveWithAnyArgs().PublishAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenConcurrentDuplicateIsStoredFirst_ReturnsConflictWithExistingId()
+    {
+        _messageRepository.FindIdByContentAsync(RoutingKey, "OrderCreated", Payload, Arg.Any<CancellationToken>()).Returns((int?)null, 8);
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new UniqueConstraintViolationException("Duplicate"));
+
+        Result<MessageResponse> result = await _service.PublishAsync(new PublishMessageRequest(Payload, RoutingKey, "OrderCreated"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Message.Duplicate", result.Error.Code);
+        Assert.Equal(8, result.Error.Metadata?["messageId"]);
+        await _messageBroker.DidNotReceiveWithAnyArgs().PublishAsync(default!, default);
+    }
+
+    [Fact]
     public async Task PublishAsync_WhenBrokerFails_KeepsMessageStoredAsNotPublished()
     {
         Message? storedMessage = null;

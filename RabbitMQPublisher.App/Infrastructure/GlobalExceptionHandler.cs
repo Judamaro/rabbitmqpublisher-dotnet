@@ -11,7 +11,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
     {
         (int statusCode, string message) = exception switch
         {
-            DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } => (StatusCodes.Status409Conflict, "The resource conflicts with an existing one."),
+            UniqueConstraintViolationException => (StatusCodes.Status409Conflict, "The resource conflicts with an existing one."),
             BadHttpRequestException badRequest => (badRequest.StatusCode, "The request is invalid."),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred.")
         };
