@@ -106,6 +106,193 @@ and `Payload` is the serialized JSON payload sent as a string:
 Messages are published as persistent, `application/json`, with `messageId` and `type` properties,
 `mandatory = true` and publisher confirms, so a successful response means RabbitMQ accepted and routed it.
 
+## Sequence diagrams
+
+The diagrams follow the services of the application layer (`MessageService`, `ErrorService` and
+`PublicationService`). Every response is a `PetitionResponse` whose `statusCode` is shown on the
+arrows back to the client.
+
+### Message lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API as Publisher API
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+    participant Consumer
+
+    Client->>API: POST /api/message/publish
+    API->>DB: INSERT Message (Published = false)
+    API->>MQ: Publish {Id, Payload, Type}
+    MQ-->>API: Confirm
+    API->>DB: UPDATE Published = true
+    API-->>Client: 201 Created
+    MQ->>Consumer: Deliver {Id, Payload, Type}
+    alt Processed
+        Consumer->>API: PATCH /api/message/{id}/updateasprocessed
+        API->>DB: UPDATE Processed = true, ProcessedAt = now
+    else Failed
+        Consumer->>API: POST /api/error/add {messageId, text}
+        API->>DB: INSERT Error
+    end
+```
+
+### Publish
+
+`POST /api/message/publish`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API as Publisher API
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+
+    Client->>API: POST /api/message/publish {payload, routingKey, type}
+    alt Malformed body or invalid fields (payload is not JSON)
+        API-->>Client: 400 Bad Request
+    end
+    API->>DB: SELECT Publication by RoutingKey
+    alt No publication for the routing key
+        API-->>Client: 404 Not Found
+    end
+    API->>DB: SELECT Message with same RoutingKey, Type and Payload (jsonb)
+    alt Duplicate found
+        API-->>Client: 409 Conflict (result.messageId = existing id)
+    end
+    API->>DB: INSERT Message (Published = false)
+    alt UX_Message_Content violated by a concurrent request
+        API->>DB: SELECT existing Message id
+        API-->>Client: 409 Conflict (result.messageId = existing id)
+    end
+    API->>MQ: Publish {Id, Payload, Type} to exchange (mandatory, persistent)
+    alt Broker unavailable or message not confirmed
+        MQ--xAPI: Error
+        API-->>Client: 503 Service Unavailable (result.messageId, stored as not published)
+    else Confirmed
+        MQ-->>API: Confirm
+        API->>DB: UPDATE Published = true, PublishedAt = now
+        API-->>Client: 201 Created (result = message)
+    end
+```
+
+### Republish
+
+`POST /api/message/{id}/republish`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API as Publisher API
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+
+    Client->>API: POST /api/message/{id}/republish
+    API->>DB: SELECT Message by Id
+    alt Message not found
+        API-->>Client: 404 Not Found
+    else Already published
+        API-->>Client: 409 Conflict
+    end
+    API->>DB: SELECT Publication by RoutingKey
+    alt No publication for the routing key
+        API-->>Client: 404 Not Found
+    end
+    API->>MQ: Publish {Id, Payload, Type} to exchange
+    alt Broker unavailable or message not confirmed
+        MQ--xAPI: Error
+        API-->>Client: 503 Service Unavailable (result.messageId)
+    else Confirmed
+        MQ-->>API: Confirm
+        API->>DB: UPDATE Published = true, PublishedAt = now
+        API-->>Client: 200 OK (result = message)
+    end
+```
+
+### UpdateAsProcessed
+
+`PATCH /api/message/{id}/updateasprocessed`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API as Publisher API
+    participant DB as PostgreSQL
+
+    Client->>API: PATCH /api/message/{id}/updateasprocessed
+    API->>DB: SELECT Message by Id
+    alt Message not found
+        API-->>Client: 404 Not Found
+    else Already processed
+        API-->>Client: 409 Conflict
+    else Pending
+        API->>DB: UPDATE Processed = true, ProcessedAt = now
+        API-->>Client: 200 OK (result = message)
+    end
+```
+
+### Add error
+
+`POST /api/error/add`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API as Publisher API
+    participant DB as PostgreSQL
+
+    Client->>API: POST /api/error/add {messageId, text}
+    alt Malformed body or invalid fields
+        API-->>Client: 400 Bad Request
+    end
+    API->>DB: SELECT EXISTS Message by Id
+    alt Message not found
+        API-->>Client: 404 Not Found
+    else Message exists
+        API->>DB: INSERT Error (CreatedAt = now)
+        API-->>Client: 201 Created (result = error)
+    end
+```
+
+### Create publication
+
+`POST /api/publication`. Updating a publication (`PUT /api/publication/{id}`) follows the same steps
+after checking that it exists (`404`), and keeps the previously declared broker objects.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API as Publisher API
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+
+    Client->>API: POST /api/publication {queue, routingKey, exchange}
+    alt Malformed body or invalid fields
+        API-->>Client: 400 Bad Request
+    end
+    API->>DB: SELECT EXISTS Publication by RoutingKey
+    alt Routing key already used
+        API-->>Client: 409 Conflict
+    end
+    API->>MQ: Declare durable direct exchange
+    API->>MQ: Declare durable queue
+    API->>MQ: Bind queue to exchange with the routing key
+    alt Broker unavailable or declaration rejected
+        MQ--xAPI: Error
+        API-->>Client: 503 Service Unavailable (nothing stored)
+    else Topology declared
+        API->>DB: INSERT Publication
+        API-->>Client: 201 Created (result = publication)
+    end
+```
+
 ## Health checks
 
 | Endpoint            | Checks                                   | Used by                          |
