@@ -27,8 +27,9 @@ public static class DependencyInjection
 
     private static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        string connectionString = configuration.GetConnectionString(ConnectionStringName)
-            ?? throw new InvalidOperationException($"The connection string '{ConnectionStringName}' is not configured.");
+        string configuredConnectionString = configuration.GetConnectionString(ConnectionStringName) ?? throw new InvalidOperationException($"The connection string '{ConnectionStringName}' is not configured.");
+
+        string connectionString = PostgresConnectionString.Normalize(ConnectionStringName, configuredConnectionString);
 
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 

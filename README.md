@@ -317,7 +317,7 @@ the deployment until they have a value. The rest have defaults.
 
 | Variable                                   | Required | Default              | Setting                                          |
 |--------------------------------------------|----------|----------------------|--------------------------------------------------|
-| `CONNECTIONSTRINGS_PUBLISHER_MESSAGE`      | Yes      |                      | `ConnectionStrings:PublisherMessage`             |
+| `CONNECTIONSTRINGS_PUBLISHER_MESSAGE`      | Yes      |                      | `ConnectionStrings:PublisherMessage` (key/value or `postgres://` URL) |
 | `RABBITMQ_HOST`                            | Yes      |                      | `RabbitMQOptions:Host`                           |
 | `RABBITMQ_USER`                            | Yes      |                      | `RabbitMQOptions:User`                           |
 | `RABBITMQ_PASSWORD`                        | Yes      |                      | `RabbitMQOptions:Pwd`                            |
@@ -368,6 +368,11 @@ The RabbitMQ management UI is at `http://localhost:15672` (guest / guest). Sampl
 - `ConnectionStrings:PublisherMessage`: PostgreSQL connection string. `appsettings.json` holds the
   `ConnectionStrings_Postgres_PublisherMessage` placeholder, injected at deploy time (in Coolify
   through `CONNECTIONSTRINGS_PUBLISHER_MESSAGE`, see [Deploying to Coolify](#deploying-to-coolify)).
+  Both formats are accepted: `Host=...;Port=5432;Database=...;Username=...;Password=...` and the URL
+  shown by Coolify, `postgres://user:password@host:5432/database` (URL-encoded values are decoded and
+  query parameters such as `sslmode=require` are applied). The value is validated at startup: an
+  invalid or missing value stops the API with exit code `1` and a message that never includes the
+  password.
 - `Database:ApplyMigrationsOnStartup`: applies pending EF Core migrations when the API starts
   (`false` in `appsettings.json`, `true` in `appsettings.Development.json`). Enable it in Coolify with
   `DATABASE_APPLY_MIGRATIONS_ON_STARTUP=true`.

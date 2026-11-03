@@ -38,6 +38,7 @@ try
 catch (Exception exception) when (exception is not HostAbortedException)
 {
     Log.Fatal(exception, "The application terminated unexpectedly");
+    Environment.ExitCode = 1;
 }
 finally
 {
