@@ -19,7 +19,7 @@ public sealed class ErrorController(IErrorService errorService) : ApiControllerB
     /// <response code="201">The error was registered.</response>
     /// <response code="400">The request is invalid.</response>
     /// <response code="404">The message does not exist.</response>
-    [HttpPost("Add")]
+    [HttpPost]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status404NotFound)]

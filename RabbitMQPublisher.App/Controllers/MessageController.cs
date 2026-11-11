@@ -63,7 +63,7 @@ public sealed class MessageController(IMessageService messageService) : ApiContr
     /// <response code="200">The message was marked as processed.</response>
     /// <response code="404">The message does not exist.</response>
     /// <response code="409">The message is already processed.</response>
-    [HttpPatch("{id:int}/UpdateAsProcessed")]
+    [HttpPatch("{id:int}/processed")]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status409Conflict)]

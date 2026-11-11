@@ -51,13 +51,16 @@ broker confirmation date once published. Dates are stored in UTC.
 |--------|-----------------------------------------|--------------------------------------------------------------------------|
 | POST   | `/api/message/publish`                  | Stores and publishes `{ payload, routingKey, type }`; rejects duplicates |
 | POST   | `/api/message/{id}/republish`           | Republishes a stored message whose `published` is `false`                |
-| PATCH  | `/api/message/{id}/updateasprocessed`   | Sets `processed = true` and `processedAt` to now                         |
-| POST   | `/api/error/add`                        | Registers `{ messageId, text }` for an existing message                  |
+| PATCH  | `/api/message/{id}/processed`           | Sets `processed = true` and `processedAt` to now                         |
+| POST   | `/api/error`                            | Registers `{ messageId, text }` for an existing message                  |
 | GET    | `/api/publication`                      | Lists publications                                                       |
 | GET    | `/api/publication/{id}`                 | Gets a publication                                                       |
 | POST   | `/api/publication`                      | Creates `{ queue, routingKey, exchange }` and declares it in RabbitMQ    |
 | PUT    | `/api/publication/{id}`                 | Updates a publication and declares the new topology                      |
 | DELETE | `/api/publication/{id}`                 | Deletes a publication                                                    |
+
+Routes follow REST: the HTTP method is the action and the route names the resource. `publish` and
+`republish` keep their names because they are actions on a message, not resource changes.
 
 ### Response format
 
@@ -131,10 +134,10 @@ sequenceDiagram
     API-->>Client: 201 Created
     MQ->>Consumer: Deliver {Id, Payload, Type}
     alt Processed
-        Consumer->>API: PATCH /api/message/{id}/updateasprocessed
+        Consumer->>API: PATCH /api/message/{id}/processed
         API->>DB: UPDATE Processed = true, ProcessedAt = now
     else Failed
-        Consumer->>API: POST /api/error/add {messageId, text}
+        Consumer->>API: POST /api/error {messageId, text}
         API->>DB: INSERT Error
     end
 ```
@@ -215,7 +218,7 @@ sequenceDiagram
 
 ### UpdateAsProcessed
 
-`PATCH /api/message/{id}/updateasprocessed`
+`PATCH /api/message/{id}/processed`
 
 ```mermaid
 sequenceDiagram
@@ -224,7 +227,7 @@ sequenceDiagram
     participant API as Publisher API
     participant DB as PostgreSQL
 
-    Client->>API: PATCH /api/message/{id}/updateasprocessed
+    Client->>API: PATCH /api/message/{id}/processed
     API->>DB: SELECT Message by Id
     alt Message not found
         API-->>Client: 404 Not Found
@@ -238,7 +241,7 @@ sequenceDiagram
 
 ### Add error
 
-`POST /api/error/add`
+`POST /api/error`
 
 ```mermaid
 sequenceDiagram
@@ -247,7 +250,7 @@ sequenceDiagram
     participant API as Publisher API
     participant DB as PostgreSQL
 
-    Client->>API: POST /api/error/add {messageId, text}
+    Client->>API: POST /api/error {messageId, text}
     alt Malformed body or invalid fields
         API-->>Client: 400 Bad Request
     end
