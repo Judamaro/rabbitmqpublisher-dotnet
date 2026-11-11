@@ -358,8 +358,7 @@ dotnet run --project RabbitMQPublisher.App
 Or use the `RabbitMQPublisher.App` debug configuration in VS Code. In the Development environment
 pending migrations are applied at startup (see `Database:ApplyMigrationsOnStartup`) and Swagger UI is available at `http://localhost:5245/swagger`.
 
-The RabbitMQ management UI is at `http://localhost:15672` (guest / guest). Sample requests are in
-`RabbitMQPublisher.App/RabbitMQPublisher.App.http`.
+The RabbitMQ management UI is at `http://localhost:15672` (guest / guest).
 
 ## Configuration
 

@@ -17,11 +17,8 @@ public sealed class PublicationController(IPublicationService publicationService
     /// <response code="200">The publications.</response>
     [HttpGet]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken) =>
-        PetitionResponse.Ok(
-            Module,
-            "Publications retrieved successfully.",
-            await publicationService.GetAllAsync(cancellationToken)).ToActionResult();
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+        => PetitionResponse.Ok(Module, "Publications retrieved successfully.", await publicationService.GetAllAsync(cancellationToken)).ToActionResult();
 
     /// <summary>Gets a publication by its identifier.</summary>
     /// <param name="id">Identifier of the publication.</param>
@@ -32,8 +29,8 @@ public sealed class PublicationController(IPublicationService publicationService
     [HttpGet("{id:int}")]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken) =>
-        Respond(await publicationService.GetByIdAsync(id, cancellationToken), "Publication retrieved successfully.");
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+        => Respond(await publicationService.GetByIdAsync(id, cancellationToken), "Publication retrieved successfully.");
 
     /// <summary>
     /// Creates a publication and declares its durable direct exchange, durable queue and binding in RabbitMQ.
@@ -56,9 +53,7 @@ public sealed class PublicationController(IPublicationService publicationService
         ObjectResult response = Respond(result, "Publication created successfully.", StatusCodes.Status201Created);
 
         if (result.IsSuccess)
-        {
             Response.Headers.Location = Url.Action(nameof(GetById), new { id = result.Value.Id });
-        }
 
         return response;
     }
@@ -81,8 +76,8 @@ public sealed class PublicationController(IPublicationService publicationService
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status503ServiceUnavailable)]
-    public async Task<IActionResult> Update(int id, PublicationRequest request, CancellationToken cancellationToken) =>
-        Respond(await publicationService.UpdateAsync(id, request, cancellationToken), "Publication updated successfully.");
+    public async Task<IActionResult> Update(int id, PublicationRequest request, CancellationToken cancellationToken)
+        => Respond(await publicationService.UpdateAsync(id, request, cancellationToken), "Publication updated successfully.");
 
     /// <summary>
     /// Deletes a publication. Broker objects are kept.
@@ -95,6 +90,6 @@ public sealed class PublicationController(IPublicationService publicationService
     [HttpDelete("{id:int}")]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<PetitionResponse>(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken) =>
-        Respond(await publicationService.DeleteAsync(id, cancellationToken), "Publication deleted successfully.");
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+        => Respond(await publicationService.DeleteAsync(id, cancellationToken), "Publication deleted successfully.");
 }
