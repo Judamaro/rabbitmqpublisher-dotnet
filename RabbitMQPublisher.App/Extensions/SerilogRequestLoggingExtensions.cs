@@ -6,9 +6,9 @@ namespace RabbitMQPublisher.App.Extensions;
 internal static class SerilogRequestLoggingExtensions
 {
     /// <summary>
-    /// Logs every HTTP request with Serilog. Successful health check requests, sent periodically by
-    /// Docker, are logged as <see cref="LogEventLevel.Verbose"/> so they do not flood the logs, and
-    /// unhealthy health check responses as <see cref="LogEventLevel.Warning"/>.
+    /// Logs every HTTP request with Serilog. Successful health check and metrics requests, sent periodically
+    /// by Docker and Prometheus, are logged as <see cref="LogEventLevel.Verbose"/> so they do not flood the logs,
+    /// and unhealthy health check responses as <see cref="LogEventLevel.Warning"/>.
     /// </summary>
     /// <param name="app">The application builder.</param>
     /// <returns>The same application builder, for chaining.</returns>
@@ -18,6 +18,7 @@ internal static class SerilogRequestLoggingExtensions
     private static LogEventLevel GetLevel(HttpContext context, double elapsedMilliseconds, Exception? exception)
     {
         bool isHealthCheck = context.Request.Path.StartsWithSegments(HealthCheckEndpointRouteBuilderExtensions.LivenessPath);
+        bool isMetricsScrape = context.Request.Path.StartsWithSegments(ObservabilityExtensions.MetricsPath);
 
         if (exception is not null)
             return LogEventLevel.Error;
@@ -26,6 +27,6 @@ internal static class SerilogRequestLoggingExtensions
         if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
             return isHealthCheck ? LogEventLevel.Warning : LogEventLevel.Error;
 
-        return isHealthCheck ? LogEventLevel.Verbose : LogEventLevel.Information;
+        return isHealthCheck || isMetricsScrape ? LogEventLevel.Verbose : LogEventLevel.Information;
     }
 }

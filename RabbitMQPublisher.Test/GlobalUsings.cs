@@ -1,11 +1,14 @@
+global using System.Diagnostics.Metrics;
 global using System.Text;
 global using System.Text.Json;
+global using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using NSubstitute;
 global using NSubstitute.ExceptionExtensions;
 global using Npgsql;
 global using RabbitMQPublisher.Application.Abstractions.Messaging;
 global using RabbitMQPublisher.Application.Abstractions.Persistence;
+global using RabbitMQPublisher.Application.Common;
 global using RabbitMQPublisher.Application.Errors;
 global using RabbitMQPublisher.Application.Messages;
 global using RabbitMQPublisher.Application.Publications;

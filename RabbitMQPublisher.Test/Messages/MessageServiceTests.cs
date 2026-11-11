@@ -1,6 +1,6 @@
 namespace RabbitMQPublisher.Test.Messages;
 
-public sealed class MessageServiceTests
+public sealed class MessageServiceTests : IDisposable
 {
     private const string RoutingKey = "orders.created";
     private const string Payload = """{"orderId":1}""";
@@ -10,11 +10,12 @@ public sealed class MessageServiceTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IMessageBroker _messageBroker = Substitute.For<IMessageBroker>();
     private readonly FixedTimeProvider _timeProvider = new();
+    private readonly TestMeterFactory _meterFactory = new();
     private readonly MessageService _service;
 
     public MessageServiceTests()
     {
-        _service = new MessageService(_messageRepository, _publicationRepository, _unitOfWork, _messageBroker, new PublishMessageRequestValidator(), _timeProvider, NullLogger<MessageService>.Instance);
+        _service = new MessageService(_messageRepository, _publicationRepository, _unitOfWork, _messageBroker, new PublishMessageRequestValidator(), _timeProvider, new PublisherMetrics(_meterFactory), NullLogger<MessageService>.Instance);
 
         _publicationRepository.GetByRoutingKeyAsync(RoutingKey, Arg.Any<CancellationToken>())
             .Returns(Publication.Create("orders.created.queue", RoutingKey, "orders"));
@@ -176,4 +177,67 @@ public sealed class MessageServiceTests
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.NotFound, result.Error.Type);
     }
+
+    [Fact]
+    public async Task PublishAsync_WithValidRequest_RecordsPublishedMessageAndDuration()
+    {
+        using MetricCollector<long> published = _meterFactory.CreateCollector<long>("publisher.messages.published");
+        using MetricCollector<double> duration = _meterFactory.CreateCollector<double>("publisher.messages.publish.duration");
+
+        await _service.PublishAsync(new PublishMessageRequest(Payload, RoutingKey, "OrderCreated"));
+
+        CollectedMeasurement<long> measurement = Assert.Single(published.GetMeasurementSnapshot());
+        Assert.Equal(1, measurement.Value);
+        Assert.Equal(RoutingKey, measurement.Tags["routing_key"]);
+        Assert.Equal(PublisherMetrics.PublishOperation, measurement.Tags["operation"]);
+        Assert.Equal("success", Assert.Single(duration.GetMeasurementSnapshot()).Tags["outcome"]);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenBrokerFails_RecordsPublishFailure()
+    {
+        using MetricCollector<long> failures = _meterFactory.CreateCollector<long>("publisher.messages.publish_failures");
+        using MetricCollector<double> duration = _meterFactory.CreateCollector<double>("publisher.messages.publish.duration");
+        _messageBroker.PublishAsync(Arg.Any<BrokerMessage>(), Arg.Any<CancellationToken>()).ThrowsAsync(new MessageBrokerException("Broker down"));
+
+        await _service.PublishAsync(new PublishMessageRequest(Payload, RoutingKey, "OrderCreated"));
+
+        Assert.Equal(RoutingKey, Assert.Single(failures.GetMeasurementSnapshot()).Tags["routing_key"]);
+        Assert.Equal("failure", Assert.Single(duration.GetMeasurementSnapshot()).Tags["outcome"]);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WithDuplicateMessage_RecordsDuplicateRejected()
+    {
+        using MetricCollector<long> duplicates = _meterFactory.CreateCollector<long>("publisher.messages.duplicates_rejected");
+        _messageRepository.FindIdByContentAsync(RoutingKey, "OrderCreated", Payload, Arg.Any<CancellationToken>()).Returns(5);
+
+        await _service.PublishAsync(new PublishMessageRequest(Payload, RoutingKey, "OrderCreated"));
+
+        Assert.Equal(RoutingKey, Assert.Single(duplicates.GetMeasurementSnapshot()).Tags["routing_key"]);
+    }
+
+    [Fact]
+    public async Task RepublishAsync_WithPendingMessage_RecordsRepublishOperation()
+    {
+        using MetricCollector<long> published = _meterFactory.CreateCollector<long>("publisher.messages.published");
+        _messageRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(Message.Create(Payload, "OrderCreated", RoutingKey, DateTime.UtcNow));
+
+        await _service.RepublishAsync(1);
+
+        Assert.Equal(PublisherMetrics.RepublishOperation, Assert.Single(published.GetMeasurementSnapshot()).Tags["operation"]);
+    }
+
+    [Fact]
+    public async Task UpdateAsProcessedAsync_WithPendingMessage_RecordsProcessedMessage()
+    {
+        using MetricCollector<long> processed = _meterFactory.CreateCollector<long>("publisher.messages.processed");
+        _messageRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(Message.Create(Payload, "OrderCreated", RoutingKey, DateTime.UtcNow));
+
+        await _service.UpdateAsProcessedAsync(1);
+
+        Assert.Equal(RoutingKey, Assert.Single(processed.GetMeasurementSnapshot()).Tags["routing_key"]);
+    }
+
+    public void Dispose() => _meterFactory.Dispose();
 }

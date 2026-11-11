@@ -14,6 +14,8 @@ public static class DependencyInjection
         services.AddScoped<IErrorService, ErrorService>();
         services.AddScoped<IPublicationService, PublicationService>();
 
+        services.AddSingleton<PublisherMetrics>();
+
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 
         return services;

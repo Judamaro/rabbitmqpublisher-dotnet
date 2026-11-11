@@ -25,6 +25,8 @@ services:
       RabbitMQOptions__Pwd: guest
     ports:
       - "8080:8080"
+      # Prometheus metrics: http://localhost:9464/metrics
+      - "9464:9464"
     depends_on:
       postgres:
         condition: service_healthy

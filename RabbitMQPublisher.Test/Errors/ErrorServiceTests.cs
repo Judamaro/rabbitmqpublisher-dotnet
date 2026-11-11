@@ -1,15 +1,16 @@
 namespace RabbitMQPublisher.Test.Errors;
 
-public sealed class ErrorServiceTests
+public sealed class ErrorServiceTests : IDisposable
 {
     private readonly IErrorRepository _errorRepository = Substitute.For<IErrorRepository>();
     private readonly IMessageRepository _messageRepository = Substitute.For<IMessageRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly TestMeterFactory _meterFactory = new();
     private readonly ErrorService _service;
 
     public ErrorServiceTests()
     {
-        _service = new ErrorService(_errorRepository, _messageRepository, _unitOfWork, new AddErrorRequestValidator(), new FixedTimeProvider());
+        _service = new ErrorService(_errorRepository, _messageRepository, _unitOfWork, new AddErrorRequestValidator(), new FixedTimeProvider(), new PublisherMetrics(_meterFactory));
     }
 
     [Fact]
@@ -46,4 +47,27 @@ public sealed class ErrorServiceTests
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);
     }
+
+    [Fact]
+    public async Task AddAsync_WithExistingMessage_RecordsRegisteredError()
+    {
+        using MetricCollector<long> registered = _meterFactory.CreateCollector<long>("publisher.errors.registered");
+        _messageRepository.ExistsAsync(1, Arg.Any<CancellationToken>()).Returns(true);
+
+        await _service.AddAsync(new AddErrorRequest(1, "Consumer failed"));
+
+        Assert.Equal(1, Assert.Single(registered.GetMeasurementSnapshot()).Value);
+    }
+
+    [Fact]
+    public async Task AddAsync_WithUnknownMessage_DoesNotRecordError()
+    {
+        using MetricCollector<long> registered = _meterFactory.CreateCollector<long>("publisher.errors.registered");
+
+        await _service.AddAsync(new AddErrorRequest(99, "Consumer failed"));
+
+        Assert.Empty(registered.GetMeasurementSnapshot());
+    }
+
+    public void Dispose() => _meterFactory.Dispose();
 }

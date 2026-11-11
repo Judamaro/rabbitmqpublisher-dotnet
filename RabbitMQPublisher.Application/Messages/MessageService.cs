@@ -9,9 +9,10 @@ namespace RabbitMQPublisher.Application.Messages;
 /// <param name="messageBroker">Broker the messages are published to.</param>
 /// <param name="validator">Validator of publish requests.</param>
 /// <param name="timeProvider">Source of the current time.</param>
+/// <param name="metrics">Business metrics of the publisher.</param>
 /// <param name="logger">Logger.</param>
 internal sealed class MessageService(IMessageRepository messageRepository, IPublicationRepository publicationRepository, IUnitOfWork unitOfWork, IMessageBroker messageBroker, IValidator<PublishMessageRequest> validator,
-    TimeProvider timeProvider, ILogger<MessageService> logger) : IMessageService
+    TimeProvider timeProvider, PublisherMetrics metrics, ILogger<MessageService> logger) : IMessageService
 {
     /// <inheritdoc />
     public async Task<Result<MessageResponse>> PublishAsync(PublishMessageRequest request, CancellationToken cancellationToken = default)
@@ -26,7 +27,10 @@ internal sealed class MessageService(IMessageRepository messageRepository, IPubl
 
         int? existingId = await messageRepository.FindIdByContentAsync(request.RoutingKey, request.Type, request.Payload, cancellationToken);
         if (existingId.HasValue)
+        {
+            metrics.DuplicateRejected(request.RoutingKey);
             return MessageErrors.Duplicate(existingId.Value);
+        }
 
         Message message = Message.Create(request.Payload, request.Type, request.RoutingKey, UtcNow());
         messageRepository.Add(message);
@@ -43,10 +47,11 @@ internal sealed class MessageService(IMessageRepository messageRepository, IPubl
                 throw;
 
             logger.LogWarning(exception, "Duplicate message rejected, it already exists with id {MessageId}", existingId.Value);
+            metrics.DuplicateRejected(request.RoutingKey);
             return MessageErrors.Duplicate(existingId.Value);
         }
 
-        return await PublishToBrokerAsync(message, publication, cancellationToken);
+        return await PublishToBrokerAsync(message, publication, PublisherMetrics.PublishOperation, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -63,7 +68,7 @@ internal sealed class MessageService(IMessageRepository messageRepository, IPubl
         if (publication is null)
             return PublicationErrors.RoutingKeyNotFound(message.RoutingKey);
 
-        return await PublishToBrokerAsync(message, publication, cancellationToken);
+        return await PublishToBrokerAsync(message, publication, PublisherMetrics.RepublishOperation, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -78,15 +83,18 @@ internal sealed class MessageService(IMessageRepository messageRepository, IPubl
             return result.Error;
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        metrics.MessageProcessed(message.RoutingKey);
         return MessageResponse.FromEntity(message);
     }
 
     /// <summary>
     /// Sends a stored message to the broker and, once confirmed, marks it as published.
+    /// The outcome and the time the broker took are recorded in <see cref="PublisherMetrics"/>.
     /// </summary>
-    private async Task<Result<MessageResponse>> PublishToBrokerAsync(Message message, Publication publication, CancellationToken cancellationToken)
+    private async Task<Result<MessageResponse>> PublishToBrokerAsync(Message message, Publication publication, string operation, CancellationToken cancellationToken)
     {
         BrokerMessage brokerMessage = new(publication.Exchange, publication.RoutingKey, message.Id, message.Type, message.Payload);
+        long startTimestamp = timeProvider.GetTimestamp();
 
         try
         {
@@ -94,9 +102,12 @@ internal sealed class MessageService(IMessageRepository messageRepository, IPubl
         }
         catch (MessageBrokerException exception)
         {
+            metrics.PublishFailed(publication.RoutingKey, operation, timeProvider.GetElapsedTime(startTimestamp));
             logger.LogError(exception, "Message {MessageId} could not be published to exchange {Exchange}", message.Id, publication.Exchange);
             return MessageErrors.PublishFailed(message.Id);
         }
+
+        metrics.MessagePublished(publication.RoutingKey, operation, timeProvider.GetElapsedTime(startTimestamp));
 
         Result result = message.MarkAsPublished(UtcNow());
         if (result.IsFailure)

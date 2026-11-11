@@ -26,5 +26,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 USER $APP_UID
-EXPOSE 8080
+
+# 8080 serves the API; 9464 serves only the Prometheus metrics (/metrics) and must stay internal.
+ENV ASPNETCORE_HTTP_PORTS="8080;9464"
+EXPOSE 8080 9464
 ENTRYPOINT ["dotnet", "RabbitMQPublisher.App.dll"]

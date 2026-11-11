@@ -311,6 +311,58 @@ every 30 seconds. It deliberately ignores the dependencies: if RabbitMQ or Postg
 container would become unhealthy and the proxy would stop routing to the API, although it can still
 store messages and republish them later. Successful health requests are not written to the logs.
 
+## Metrics
+
+The API exports metrics for Prometheus with OpenTelemetry at `GET /metrics`. The endpoint only answers
+on the internal port `9464` (`Metrics:Port`); on the public API port `8080` it returns `404`, so the
+metrics are never exposed through the Coolify domain. Scrapes are not written to the request logs.
+
+Publisher metrics (meter `RabbitMQPublisher`):
+
+| Prometheus metric                                   | Type      | Labels                                     | Description                                         |
+|-----------------------------------------------------|-----------|--------------------------------------------|-----------------------------------------------------|
+| `publisher_messages_published_total`                | Counter   | `routing_key`, `operation`                 | Messages published and confirmed by RabbitMQ        |
+| `publisher_messages_publish_failures_total`         | Counter   | `routing_key`, `operation`                 | Messages RabbitMQ could not publish or confirm      |
+| `publisher_messages_duplicates_rejected_total`      | Counter   | `routing_key`                              | Publish requests rejected as duplicates             |
+| `publisher_messages_processed_total`                | Counter   | `routing_key`                              | Messages reported as processed by a consumer        |
+| `publisher_errors_registered_total`                 | Counter   |                                            | Errors reported for messages                        |
+| `publisher_messages_publish_duration_seconds`       | Histogram | `routing_key`, `operation`, `outcome`      | Time RabbitMQ took to accept and confirm a message  |
+
+`operation` is `publish` or `republish`, and `outcome` is `success` or `failure`. The metrics already
+emitted by .NET are exported too: HTTP requests (`http_server_request_duration_seconds`), Kestrel
+connections (`kestrel_*`), the runtime (`dotnet_gc_*`, `dotnet_process_*`, `dotnet_thread_pool_*`) and
+PostgreSQL through Npgsql (`db_client_*`).
+
+### Scraping from Prometheus in Coolify
+
+Prometheus must reach the API through the Docker network, so enable **Connect To Predefined Network** on
+both resources and use the container name of the API as the target:
+
+```yaml
+scrape_configs:
+  - job_name: rabbitmq-publisher
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["<api-container-name>:9464"]
+```
+
+### Example queries for Grafana
+
+```promql
+# Messages published per minute, by routing key
+sum by (routing_key) (rate(publisher_messages_published_total[5m])) * 60
+
+# Publish failure ratio
+sum(rate(publisher_messages_publish_failures_total[5m]))
+  / (sum(rate(publisher_messages_published_total[5m])) + sum(rate(publisher_messages_publish_failures_total[5m])))
+
+# 95th percentile of the time RabbitMQ takes to confirm a message
+histogram_quantile(0.95, sum by (le) (rate(publisher_messages_publish_duration_seconds_bucket{outcome="success"}[5m])))
+
+# HTTP requests per second, by route and status code
+sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count[5m]))
+```
+
 ## Deploying to Coolify
 
 Use the Docker Compose build pack with `docker-compose.yml`. It only contains the API, so PostgreSQL
@@ -332,9 +384,10 @@ the deployment until they have a value. The rest have defaults.
 | `RABBITMQ_NETWORK_RECOVERY_INTERVAL_SECONDS` | No     | `5`                  | `RabbitMQOptions:NetworkRecoveryIntervalSeconds` |
 | `RABBITMQ_MAX_CONNECT_RETRY_DELAY_SECONDS` | No       | `60`                 | `RabbitMQOptions:MaxConnectRetryDelaySeconds`    |
 | `DATABASE_APPLY_MIGRATIONS_ON_STARTUP`     | No       | `false`              | `Database:ApplyMigrationsOnStartup`              |
+| `METRICS_PORT`                             | No       | `9464`               | `Metrics:Port` (internal Prometheus port)        |
 | `ASPNETCORE_ENVIRONMENT`                   | No       | `Production`         | Hosting environment                              |
 
-The API listens on port `8080`.
+The API listens on port `8080`. The metrics port (`9464`) is only exposed to the internal network; do not attach a domain to it.
 
 ## Running with Docker
 

@@ -12,7 +12,8 @@ try
     builder.Services
         .AddApplication()
         .AddInfrastructure(builder.Configuration)
-        .AddPresentation();
+        .AddPresentation()
+        .AddObservability();
 
     WebApplication app = builder.Build();
 
@@ -28,10 +29,12 @@ try
         app.UseSwaggerUI();
     }
 
-    app.UseHttpsRedirection();
+    int metricsPort = app.Configuration.GetMetricsPort();
+    app.UseWhen(context => context.Connection.LocalPort != metricsPort, branch => branch.UseHttpsRedirection());
 
     app.MapControllers();
     app.MapHealthEndpoints();
+    app.MapMetricsEndpoint();
 
     await app.RunAsync();
 }

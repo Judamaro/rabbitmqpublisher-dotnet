@@ -15,10 +15,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    # 8080: API, routed through the Coolify domain.
+    # 9464: Prometheus metrics (GET /metrics), only for the internal network; do not attach a domain to it.
     expose:
       - "8080"
+      - "${METRICS_PORT:-9464}"
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: 8080;${METRICS_PORT:-9464}
+      Metrics__Port: ${METRICS_PORT:-9464}
       ConnectionStrings__PublisherMessage: ${CONNECTIONSTRINGS_PUBLISHER_MESSAGE:?}
       # Applies pending EF Core migrations when the API starts.
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}

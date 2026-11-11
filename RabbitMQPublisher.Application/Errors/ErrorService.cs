@@ -8,7 +8,8 @@ namespace RabbitMQPublisher.Application.Errors;
 /// <param name="unitOfWork">Unit of Work that persists the changes.</param>
 /// <param name="validator">Validator of add requests.</param>
 /// <param name="timeProvider">Source of the current time.</param>
-internal sealed class ErrorService(IErrorRepository errorRepository, IMessageRepository messageRepository, IUnitOfWork unitOfWork, IValidator<AddErrorRequest> validator, TimeProvider timeProvider) : IErrorService
+/// <param name="metrics">Business metrics of the publisher.</param>
+internal sealed class ErrorService(IErrorRepository errorRepository, IMessageRepository messageRepository, IUnitOfWork unitOfWork, IValidator<AddErrorRequest> validator, TimeProvider timeProvider, PublisherMetrics metrics) : IErrorService
 {
     /// <inheritdoc />
     public async Task<Result<ErrorResponse>> AddAsync(AddErrorRequest request, CancellationToken cancellationToken = default)
@@ -23,6 +24,7 @@ internal sealed class ErrorService(IErrorRepository errorRepository, IMessageRep
         Error error = Error.Create(request.MessageId, request.Text, timeProvider.GetUtcNow().UtcDateTime);
         errorRepository.Add(error);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        metrics.ErrorRegistered();
 
         return ErrorResponse.FromEntity(error);
     }

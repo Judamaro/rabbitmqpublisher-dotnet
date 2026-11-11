@@ -1,3 +1,4 @@
+global using System.Diagnostics.Metrics;
 global using System.Text.Json;
 global using FluentValidation;
 global using FluentValidation.Results;
