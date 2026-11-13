@@ -15,6 +15,11 @@ public sealed class PublisherMetrics
     /// <summary>Operation tag value of a republication.</summary>
     public const string RepublishOperation = "republish";
 
+    // Bucket boundaries in seconds, the same ones ASP.NET Core uses for http.server.request.duration.
+    // Without them OpenTelemetry uses its default boundaries (0, 5, 10, 25, ...), meant for milliseconds,
+    // and every confirmation falls in the first bucket.
+    private static readonly IReadOnlyList<double> DurationBucketBoundaries = [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10];
+
     private const string RoutingKeyTag = "routing_key";
     private const string OperationTag = "operation";
     private const string OutcomeTag = "outcome";
@@ -37,7 +42,8 @@ public sealed class PublisherMetrics
         _duplicatesRejected = meter.CreateCounter<long>("publisher.messages.duplicates_rejected", "{message}", "Publish requests rejected because the same message already exists.");
         _processed = meter.CreateCounter<long>("publisher.messages.processed", "{message}", "Messages reported as processed by a consumer.");
         _errorsRegistered = meter.CreateCounter<long>("publisher.errors.registered", "{error}", "Errors reported for messages.");
-        _publishDuration = meter.CreateHistogram<double>("publisher.messages.publish.duration", "s", "Time RabbitMQ took to accept and confirm a message.");
+        _publishDuration = meter.CreateHistogram("publisher.messages.publish.duration", "s", "Time RabbitMQ took to accept and confirm a message.",
+            advice: new InstrumentAdvice<double> { HistogramBucketBoundaries = DurationBucketBoundaries });
     }
 
     /// <summary>Records a message published and confirmed by the broker.</summary>

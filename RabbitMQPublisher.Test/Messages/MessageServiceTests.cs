@@ -239,5 +239,23 @@ public sealed class MessageServiceTests : IDisposable
         Assert.Equal(RoutingKey, Assert.Single(processed.GetMeasurementSnapshot()).Tags["routing_key"]);
     }
 
+    [Fact]
+    public void PublishDuration_UsesBucketBoundariesInSeconds()
+    {
+        Instrument? duration = null;
+        using MeterListener listener = new()
+        {
+            InstrumentPublished = (instrument, _) =>
+            {
+                if (instrument.Meter.Scope == _meterFactory && instrument.Name == "publisher.messages.publish.duration")
+                    duration = instrument;
+            }
+        };
+        listener.Start();
+
+        Histogram<double> histogram = Assert.IsType<Histogram<double>>(duration);
+        Assert.Equal([0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10], histogram.Advice?.HistogramBucketBoundaries);
+    }
+
     public void Dispose() => _meterFactory.Dispose();
 }
