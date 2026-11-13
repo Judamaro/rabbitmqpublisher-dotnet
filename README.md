@@ -18,6 +18,7 @@ rabbitmqpublisher-dotnet
 ├── RabbitMQPublisher.Infrastructure/ EF Core + PostgreSQL (DbContext, repositories, migrations),
 │                                     RabbitMQ adapter (RabbitMQ.Client 7)
 ├── RabbitMQPublisher.Test/           xUnit + NSubstitute
+├── grafana/                          Grafana dashboard (classic JSON and v2 resource)
 ├── .dockerignore
 ├── .gitignore
 ├── docker-compose.yml                Coolify deployment (API only, required variables)
@@ -362,6 +363,34 @@ histogram_quantile(0.95, sum by (le) (rate(publisher_messages_publish_duration_s
 # HTTP requests per second, by route and status code
 sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count[5m]))
 ```
+
+### Grafana dashboard
+
+The `grafana/` folder has the same ready-made dashboard in the two Grafana formats:
+
+| File                                     | Format                         | Where to use it                                                        |
+|------------------------------------------|--------------------------------|------------------------------------------------------------------------|
+| `rabbitmq-publisher-dashboard.json`      | Classic JSON model             | **Dashboards > New > Import** (recommended, Grafana 10, 11 and 12)     |
+| `rabbitmq-publisher-dashboard.v2.json`   | v2 dashboard spec (`v2beta1`)  | **Settings > JSON Model** of a dashboard in Grafana 12 with the new dashboard schema (editor with **Format: JSON / YAML**) |
+
+The JSON Model editor of the new schema expects the dashboard spec at the root (`annotations`,
+`elements`, `layout`, ...), so pasting the classic JSON there shows errors such as
+`Incorrect type. Expected "array"`. After importing, pick your Prometheus data source in the
+**Data source** variable. The dashboard has variables for the data source, `job`,
+`instance` and `routing_key`, and these sections:
+
+- **Overview**: published, publish failures, failure ratio, duplicates rejected, processed, errors
+  registered, p95 RabbitMQ confirm time and instances up, for the selected time range.
+- **Messages**: published, failures, published vs processed and duplicates rejected per minute.
+- **RabbitMQ confirm time**: p50/p95/p99 and p95 by routing key.
+- **HTTP API**: requests per second by route and status, 4xx/5xx ratio, p95 latency by route and active
+  requests (health checks and metric scrapes are excluded).
+- **.NET runtime**: memory, CPU, GC and thread pool.
+- **PostgreSQL (Npgsql)**: pool connections by state, query duration and queries per second.
+
+The publisher counters only exist in Prometheus after their first event, and `increase()` cannot see
+that first value, so the first failure, duplicate or error after the API starts is not counted by the
+range panels; the following ones are.
 
 ## Deploying to Coolify
 
